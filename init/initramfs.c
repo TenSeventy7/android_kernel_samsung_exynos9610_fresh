@@ -449,7 +449,7 @@ static unsigned long my_inptr; /* index of next byte to be processed in inbuf */
 
 #include <linux/decompress/generic.h>
 
-static char * __init unpack_to_rootfs(char *buf, unsigned long len)
+char * __init unpack_to_rootfs(char *buf, unsigned long len)
 {
 	long written;
 	decompress_fn decompress;
@@ -561,7 +561,7 @@ skip:
 
 #ifdef CONFIG_BLK_DEV_RAM
 #define BUF_SIZE 1024
-static void __init clean_rootfs(void)
+void __init clean_rootfs(void)
 {
 	int fd;
 	void *buf;

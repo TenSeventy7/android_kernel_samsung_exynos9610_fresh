@@ -1,0 +1,16 @@
+config ANDROID_SAR_RAMDISK
+	bool
+	default y
+	help
+	  Support for loading a ramdisk from a
+	  partition containing an Android boot.img.
+	  Useful if your bootloader doesn't load
+	  the ramdisk.
+
+if ANDROID_SAR_RAMDISK
+
+config ANDROID_BOOT_PARTITION
+	string "Android boot partition"
+	default "/dev/sda14"
+
+endif

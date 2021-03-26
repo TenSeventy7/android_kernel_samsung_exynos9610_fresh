@@ -160,7 +160,7 @@
 					type = "ext4";
 					mnt_flags = "ro";
 					fsmgr_flags = "wait";
-					status = "disabled";
+					status = "okay";
 				};
 				vendor {
 					compatible = "android,vendor";

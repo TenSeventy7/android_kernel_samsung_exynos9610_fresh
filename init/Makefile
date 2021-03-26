@@ -10,6 +10,7 @@ obj-y                          += noinitramfs.o
 obj-$(CONFIG_BLK_DEV_INITRD)   += initramfs.o
 obj-$(CONFIG_GENERIC_CALIBRATE_DELAY) += calibrate.o
 obj-$(CONFIG_UH)              += uh_fault_handler.o
+obj-$(CONFIG_ANDROID_SAR_RAMDISK) += sar_ramdisk/
 
 ifneq ($(CONFIG_ARCH_INIT_TASK),y)
 obj-y                          += init_task.o
