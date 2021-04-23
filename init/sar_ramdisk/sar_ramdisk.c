@@ -16,7 +16,7 @@ static int padding(unsigned itemsize, int pagesize) {
 	return pagesize - (itemsize & pagemask);
 }
 
-int mount_sar_ramdisk(char* name) {
+__init int mount_sar_ramdisk(char* name) {
 	struct boot_img_hdr_v1 header;
 	unsigned int rd_offset;
 	int fd;
