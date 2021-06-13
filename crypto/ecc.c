@@ -261,6 +261,13 @@ static u64 vli_sub(u64 *result, const u64 *left, const u64 *right,
 
 static uint128_t mul_64_64(u64 left, u64 right)
 {
+	uint128_t result;
+#if defined(CONFIG_ARCH_SUPPORTS_INT128) && defined(__SIZEOF_INT128__)
+	unsigned __int128 m = (unsigned __int128)left * right;
+
+	result.m_low  = m;
+	result.m_high = m >> 64;
+#else
 	u64 a0 = left & 0xffffffffull;
 	u64 a1 = left >> 32;
 	u64 b0 = right & 0xffffffffull;
@@ -269,7 +276,6 @@ static uint128_t mul_64_64(u64 left, u64 right)
 	u64 m1 = a0 * b1;
 	u64 m2 = a1 * b0;
 	u64 m3 = a1 * b1;
-	uint128_t result;
 
 	m2 += (m0 >> 32);
 	m2 += m1;
@@ -281,6 +287,7 @@ static uint128_t mul_64_64(u64 left, u64 right)
 	result.m_low = (m0 & 0xffffffffull) | (m2 << 32);
 	result.m_high = m3 + (m2 >> 32);
 
+#endif
 	return result;
 }
 
