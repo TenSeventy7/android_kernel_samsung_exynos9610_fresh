@@ -384,22 +384,6 @@ static inline void setup_nr_cpu_ids(void) { }
 static inline void smp_prepare_cpus(unsigned int maxcpus) { }
 #endif
 
-static void hide_string(char *buf, ...)
-{
-	char arg;
-	va_list args;
-	va_start(args, buf);     /* Initialize the argument args. */
-
-	arg = va_arg(args, int);
-
-	while (arg) {
-		sprintf(buf, "%s%c", buf, arg);
-		arg = va_arg(args, int);
-	}
-
-	va_end(args);                  /* Clean up. */
-}
-
 static void remove_flag(char *cmd, const char *flag)
 {
 	char *start_addr, *end_addr;
@@ -426,8 +410,8 @@ static void __init setup_command_line(char *command_line)
 	// and magisk will use SARInit which renders
 	// the device unbootable so we have to 'hide'
 	// skip_initramfs string
-	char skip_initramfs[14] = { 0 };
-	hide_string(skip_initramfs, 's', 'k', 'i', 'p', '_', 'i', 'n', 'i', 't', 'r', 'a', 'm', 'f', 's');
+	char skip_initramfs[] = "skip!initramfs";
+	skip_initramfs[4] = '_';
 	remove_flag(command_line, skip_initramfs);
 
 	saved_command_line =
