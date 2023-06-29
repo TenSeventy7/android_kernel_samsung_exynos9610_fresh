@@ -443,6 +443,10 @@ struct sec_battery_info {
 	bool factory_mode;
 	bool store_mode;
 
+	/* charging disabler */
+	bool charging_enabled;
+	bool charging_suspended;
+
 	/* MTBF test for CMCC */
 	bool is_hc_usb;
 

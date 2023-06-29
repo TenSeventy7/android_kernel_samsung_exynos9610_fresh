@@ -1397,7 +1397,7 @@ void sec_bat_parse_mode_dt(struct sec_battery_info *battery)
 		return;
 	}
 
-	if (battery->store_mode) {
+	if (battery->store_mode || !battery->charging_enabled) {
 		ret = of_property_read_u32(np, "battery,store_mode_afc_input_current",
 			&pdata->store_mode_afc_input_current);
 		if (ret) {
