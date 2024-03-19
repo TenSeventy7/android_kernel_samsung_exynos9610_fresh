@@ -7,15 +7,6 @@ extern void clean_rootfs(void);
 extern void flush_delayed_fput(void);
 extern char* unpack_to_rootfs(char *buf, unsigned long len);
 
-static int padding(unsigned itemsize, int pagesize) {
-	unsigned pagemask = pagesize - 1;
-
-	if((itemsize & pagemask) == 0)
-		return 0;
-
-	return pagesize - (itemsize & pagemask);
-}
-
 __init int mount_sar_ramdisk(char* name) {
 	struct boot_img_hdr_v1 header;
 	unsigned int rd_offset;
@@ -35,10 +26,8 @@ __init int mount_sar_ramdisk(char* name) {
 		goto clean_nobuf;
 	}
 
-	rd_offset += sizeof(header);
-	rd_offset += padding(sizeof(header), header.page_size);
-	rd_offset += header.kernel_size;
-	rd_offset += padding(header.kernel_size, header.page_size);
+	rd_offset += round_up(sizeof(header), header.page_size);
+	rd_offset += round_up(header.kernel_size, header.page_size);
 
 	pr_err("SAR_RD: Trying to load Ramdisk at offset %d", rd_offset);
 
