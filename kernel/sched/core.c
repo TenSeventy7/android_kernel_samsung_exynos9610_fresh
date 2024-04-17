@@ -5476,6 +5476,11 @@ int sched_setattr(struct task_struct *p, const struct sched_attr *attr)
 }
 EXPORT_SYMBOL_GPL(sched_setattr);
 
+int sched_setattr_nocheck(struct task_struct *p, const struct sched_attr *attr)
+{
+	return __sched_setscheduler(p, attr, false, true);
+}
+
 /**
  * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernelspace.
  * @p: the task in question.
