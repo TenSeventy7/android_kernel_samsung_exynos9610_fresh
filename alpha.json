@@ -1,0 +1,7 @@
+{
+	"magisk": {
+		"version": "28.1-alpha",
+		"versionCode": "28101",
+		"link": "https://raw.githubusercontent.com/FreshROMs/android_kernel_samsung_exynos9610_mint/magisk-files/alpha.apk"
+	}
+}
