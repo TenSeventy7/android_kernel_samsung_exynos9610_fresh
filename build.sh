@@ -111,13 +111,7 @@ update_magisk() {
 	script_echo " "
 	script_echo "I: Updating Magisk..."
 
-	case "$BUILD_KERNEL_MAGISK_BRANCH" in
-	canary) MAGISK_BRANCH="canary" ;;
-	local) MAGISK_BRANCH="local" ;;
-	*) MAGISK_BRANCH="stable" ;;
-	esac
-
-	${ORIGIN_DIR}/usr/magisk/update_magisk.sh ${MAGISK_BRANCH} 2>&1 | sed 's/^/     /'
+	bash "${ORIGIN_DIR}/usr/magisk/update_magisk.sh" "${BUILD_KERNEL_MAGISK_BRANCH}" 2>&1 | sed 's/^/     /'
 }
 
 fill_magisk_config() {
@@ -150,7 +144,7 @@ show_usage() {
 	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
-	script_echo "-m, --magisk [canary]     Pre-root the kernel with Magisk. Optional flag to use canary builds."
+	script_echo "-m, --magisk <variant>    Pre-root the kernel with a specified Magisk variant."
 	script_echo "                          Not available for 'recovery' variant."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
@@ -164,6 +158,12 @@ show_usage() {
 	script_echo "Supported devices:"
 	script_echo "  a50 (Samsung Galaxy A50)"
 	script_echo " a50s (Samsung Galaxy A50s)"
+	script_echo " "
+	script_echo "Magisk options:"
+	script_echo "  stable (Standard Magisk)"
+	script_echo "  canary (Magisk Canary)"
+	script_echo "   alpha (Magisk Alpha)"
+	script_echo " kitsune (Kitsune Mask)"
 	exit_script
 }
 
@@ -300,6 +300,10 @@ if [[ ${BUILD_KERNEL_CODE} == "oneui" ]]; then
 	ZIP_ONEUI_VERSION="$((${BUILD_ANDROID_PLATFORM} - 8))"
 fi
 
+if [[ ${BUILD_KERNEL_MAGISK_BRANCH} == "stable" ]]; then
+	local BUILD_KERNEL_MAGISK_BRANCH=""
+fi
+
 if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 
 	if [[ ${BUILD_KERNEL_BRANCH} == *"android-"* ]]; then
@@ -317,7 +321,7 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		export LOCALVERSION=" - Mint ${KERNEL_BUILD_VERSION}"
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}_${BUILD_DEVICE_NAME^}.zip
+			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-Magisk${BUILD_KERNEL_MAGISK_BRANCH^}_${BUILD_DEVICE_NAME^}.zip
 		else
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-NoRoot_${BUILD_DEVICE_NAME^}.zip
 		fi
@@ -326,7 +330,7 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 		export LOCALVERSION=" - Mint Beta ${GITHUB_RUN_NUMBER}"
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
-			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}_${BUILD_DEVICE_NAME^}.CI.zip
+			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-Magisk${BUILD_KERNEL_MAGISK_BRANCH^}_${BUILD_DEVICE_NAME^}.CI.zip
 		else
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-NoRoot_${BUILD_DEVICE_NAME^}.CI.zip
 		fi
@@ -441,14 +445,20 @@ while [[ $# -gt 0 ]]; do
       BUILD_KERNEL_MAGISK='true'
       BUILD_KERNEL_MAGISK_BRANCH=`echo ${2} | tr 'A-Z' 'a-z'`
 
-      # Shift twice if asking for canary or local builds. Otherwise, shift only once.
-      if [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xcanary" ]]; then
-      	shift
-      elif [[ "x${BUILD_KERNEL_MAGISK_BRANCH}" == "xlocal" ]]; then
-      	shift
-      fi
-      
-      shift # past value
+	  if [[ " stable canary alpha kitsune local " != *" $BUILD_KERNEL_MAGISK_BRANCH "* ]]; then
+	  	script_echo "E: Invalid Magisk variant!"
+		script_echo " "
+		script_echo "Available options:"
+		script_echo "- stable"
+		script_echo "- canary"
+		script_echo "- alpha"
+		script_echo "- kitsune"
+		script_echo " "
+		exit_script
+	  fi
+
+	  ROOT_SOLUTION="Magisk ${BUILD_KERNEL_MAGISK_BRANCH^}"
+      shift; shift # past value
       ;;
     -p|--permissive)
       BUILD_KERNEL_PERMISSIVE='true'
@@ -542,6 +552,10 @@ else
 	BUILD_KERNEL_OUTPUT="${ORIGIN_DIR}/${FILE_OUTPUT}"
 fi
 
+if [[ -z ${ROOT_SOLUTION} ]]; then
+	ROOT_SOLUTION="None"
+fi
+
 if [[ -z ${BUILD_DEVICE_NAME} ]]; then
 	script_echo "E: No device selected to build kernel!"
 	script_echo " "
@@ -549,9 +563,9 @@ if [[ -z ${BUILD_DEVICE_NAME} ]]; then
 else
 	script_echo "I: Selected device:    ${BUILD_DEVICE_NAME}"
 	script_echo "   Selected variant:   ${FILE_KERNEL_CODE}"
+	script_echo "   Root solution:      ${ROOT_SOLUTION}"
 	script_echo "   Kernel version:     ${VERSION}.${PATCHLEVEL}.${SUBLEVEL}"
 	script_echo "   Android version:    ${BUILD_ANDROID_PLATFORM}"
-	script_echo "   Magisk-enabled:     ${BUILD_KERNEL_MAGISK}"
 	script_echo "   Output ZIP file:    ${BUILD_KERNEL_OUTPUT}"
 fi
 

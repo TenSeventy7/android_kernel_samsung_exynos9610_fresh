@@ -44,12 +44,38 @@ jobs:
         run: |
           set -eo pipefail
           echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --magisk --variant $VARIANT --android $ANDROID -$SELINUX
+          ./build.sh --automated --device a50 --magisk stable --variant $VARIANT --android $ANDROID -$SELINUX
 
       - name: Upload kernel image artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.type }} Kernel Image (Magisk)
+          path: 'tools/make/boot.img'
+          if-no-files-found: error
+
+      - name: Build Mint kernel (Magisk Alpha)
+        run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          ./build.sh --automated --device a50 --magisk alpha --variant $VARIANT --android $ANDROID -$SELINUX
+
+      - name: Upload kernel image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.type }} Kernel Image (Magisk Alpha)
+          path: 'tools/make/boot.img'
+          if-no-files-found: error
+
+      - name: Build Mint kernel (Kitsune Mask)
+        run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          ./build.sh --automated --device a50 --magisk kitsune --variant $VARIANT --android $ANDROID -$SELINUX
+
+      - name: Upload kernel image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.type }} Kernel Image (Kitsune Mask)
           path: 'tools/make/boot.img'
           if-no-files-found: error
 
