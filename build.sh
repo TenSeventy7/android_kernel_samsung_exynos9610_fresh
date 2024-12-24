@@ -145,7 +145,9 @@ show_usage() {
 	script_echo " "
 	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
 	script_echo "-m, --magisk <variant>    Pre-root the kernel with a specified Magisk variant."
-	script_echo "                          Not available for 'recovery' variant."
+	script_echo "                          Not available for 'recovery' variant and KernelSU pre-root."
+	script_echo "-k, --kernelsu            Pre-root the kernel with KernelSU Next."
+	script_echo "                          Not available for 'recovery' variant and Magisk pre-root."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
 	script_echo "-h, --help                Show this message."
@@ -322,6 +324,8 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-Magisk${BUILD_KERNEL_MAGISK_BRANCH^}_${BUILD_DEVICE_NAME^}.zip
+		elif [[ ${BUILD_KERNEL_KSU} == 'true' ]]; then
+			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-KernelSU_${BUILD_DEVICE_NAME^}.zip
 		else
 			FILE_OUTPUT=Mint-${KERNEL_BUILD_VERSION}.A${BUILD_ANDROID_PLATFORM}_${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-NoRoot_${BUILD_DEVICE_NAME^}.zip
 		fi
@@ -331,6 +335,8 @@ if [[ ! -z ${BUILD_KERNEL_BRANCH} ]]; then
 
 		if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-Magisk${BUILD_KERNEL_MAGISK_BRANCH^}_${BUILD_DEVICE_NAME^}.CI.zip
+		elif [[ ${BUILD_KERNEL_KSU} == 'true' ]]; then
+			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-KernelSU_${BUILD_DEVICE_NAME^}.CI.zip
 		else
 			FILE_OUTPUT=MintBeta-${GITHUB_RUN_NUMBER}.A${BUILD_ANDROID_PLATFORM}.${FILE_KERNEL_CODE}${ZIP_ONEUI_VERSION}-${FILE_NAME_SELINUX}-NoRoot_${BUILD_DEVICE_NAME^}.CI.zip
 		fi
@@ -442,6 +448,16 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -m|--magisk)
+	  if [[ $BUILD_KERNEL_KSU == 'true' ]]; then
+		script_echo "I: KernelSU pre-root selected."
+		script_echo "   Magisk is not an available option on KernelSU builds."
+		script_echo "   Ignoring."
+		script_echo " "
+		shift
+		[[ " stable canary alpha kitsune local " == *" $2 "* ]] && shift
+		continue
+	  fi
+
       BUILD_KERNEL_MAGISK='true'
       BUILD_KERNEL_MAGISK_BRANCH=`echo ${2} | tr 'A-Z' 'a-z'`
 
@@ -460,6 +476,20 @@ while [[ $# -gt 0 ]]; do
 	  ROOT_SOLUTION="Magisk ${BUILD_KERNEL_MAGISK_BRANCH^}"
       shift; shift # past value
       ;;
+	-k|--kernelsu)
+		if [[ $BUILD_KERNEL_MAGISK == 'true' ]]; then
+			script_echo "I: Magisk pre-root selected."
+			script_echo "   KernelSU is not an available option on Magisk builds."
+			script_echo "   Ignoring."
+			script_echo " "
+			shift
+			continue
+		fi
+
+		BUILD_KERNEL_KSU='true'
+		ROOT_SOLUTION="KernelSU Next"
+		shift
+		;;
     -p|--permissive)
       BUILD_KERNEL_PERMISSIVE='true'
       shift
@@ -610,10 +640,10 @@ if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 		script_echo "I: Recovery variant selected."
 		script_echo "   Magisk is not an available option to allow recovery to boot."
 		script_echo "   Patch the image using Magisk manually to get root."
-		merge_config non-root
+		merge_config root_none
 		sleep 3
 	else
-		merge_config pre-root
+		merge_config root_magisk
 
 		if [[ ! ${BUILD_KERNEL_DIRTY} == 'true' ]]; then
 			update_magisk
@@ -621,8 +651,26 @@ if [[ ${BUILD_KERNEL_MAGISK} == 'true' ]]; then
 
 		fill_magisk_config
 	fi
+elif [[ ${BUILD_KERNEL_KSU} == 'true' ]]; then
+	if [[ ${BUILD_KERNEL_CODE} == 'recovery' ]]; then
+		script_echo " "
+		script_echo "I: Recovery variant selected."
+		script_echo "   KernelSU is not an available option to allow recovery to boot."
+		script_echo "   Patch the image using Magisk manually to get root."
+		merge_config root_none
+		sleep 3
+	else
+		merge_config root_kernelsu
+	fi
 else
-	merge_config non-root
+	merge_config root_none
+fi
+
+if [ -z "$(find "$ORIGIN_DIR/KernelSU" -mindepth 1)" ]; then
+	script_echo " "
+	script_echo "I: KernelSU not initialized."
+	script_echo "   Initializing submodule to allow compiling."
+	git submodule update --init "$ORIGIN_DIR/KernelSU"
 fi
 
 # Use no-product Exynos DTB when building AOSP
