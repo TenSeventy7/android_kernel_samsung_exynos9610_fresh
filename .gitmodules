@@ -1,0 +1,4 @@
+[submodule "KernelSU"]
+	path = KernelSU
+	url = https://github.com/rifsxd/KernelSU-Next.git
+	ignore = dirty
