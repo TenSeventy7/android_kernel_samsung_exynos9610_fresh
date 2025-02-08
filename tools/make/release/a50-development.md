@@ -10,7 +10,7 @@ Changelog will be available shortly.
 
 Beta releases of Mint Kernel use the following file name template:
 
-`MintBeta-(Mint Build).(Android Version).(Variant)_A50.CI.zip`
+`MintBeta-(Mint Build).(Android Version).(Variant)-(SELinux)_A50.CI.zip`
 
 1. Please select the appropriate variant of the kernel for the ROM you're currently using.
 2. Mint recommends installing **Enforcing builds** unless Permissive kernels are **necessary to boot your ROM.**

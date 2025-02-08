@@ -63,7 +63,6 @@ BUILD_KERNEL_BRANCH="${GITHUB_REF##*/}"
 # Defaults
 BUILD_KERNEL_CI=false
 BUILD_KERNEL_DIRTY=false
-BUILD_KERNEL_MAGISK=false
 BUILD_KERNEL_PERMISSIVE=false
 
 # Script commands
@@ -126,41 +125,6 @@ VERIFY_DEFCONFIG() {
     fi
 }
 
-UPDATE_MAGISK() {
-	script_echo " "
-	script_echo "I: Updating Magisk..."
-
-	if [[ $BUILD_KERNEL_MAGISK_BRANCH == canary ]]; then
-		MAGISK_BRANCH="canary"
-	elif [[ $BUILD_KERNEL_MAGISK_BRANCH == local ]]; then
-		MAGISK_BRANCH="local"
-	else
-		MAGISK_BRANCH=""
-	fi
-
-	"$TOP/usr/magisk/UPDATE_MAGISK.sh" $MAGISK_BRANCH 2>&1 | sed 's/^/     /'
-}
-FILL_MAGISK_CONFIG() {
-	MAGISK_USR_DIR="$TOP/usr/magisk/"
-
-	script_echo " "
-	script_echo "I: Configuring Magisk..."
-
-	if [[ -f "$MAGISK_USR_DIR/backup_magisk" ]]; then
-		rm "$MAGISK_USR_DIR/backup_magisk"
-	fi
-
-	echo "KEEPVERITY=true" >> "$MAGISK_USR_DIR/backup_magisk"
-	echo "KEEPFORCEENCRYPT=true" >> "$MAGISK_USR_DIR/backup_magisk"
-	echo "RECOVERYMODE=false" >> "$MAGISK_USR_DIR/backup_magisk"
-	echo "PREINITDEVICE=userdata" >> "$MAGISK_USR_DIR/backup_magisk"
-
-	# Create a unique random seed per-build
-	script_echo "   - Generating a unique random seed for this build..."
-	RANDOMSEED=$(tr -dc 'a-f0-9' < /dev/urandom | head -c 16)
-	echo "RANDOMSEED=0x$RANDOMSEED" >> "$MAGISK_USR_DIR/backup_magisk"
-}
-
 SET_ANDROIDVERSION() {
     echo "CONFIG_MINT_PLATFORM_VERSION=$BUILD_ANDROID_PLATFORM" >> "$BUILD_CONFIG_DIR/$BUILD_DEVICE_TMP_CONFIG"
 }
@@ -186,7 +150,6 @@ SET_ZIPNAME() {
         MINT_TYPE="CI"
     fi
 
-    $BUILD_KERNEL_MAGISK && ROOT_SOLUTION="-Magisk"
     $BUILD_KERNEL_PERMISSIVE && MINT_SELINUX="Permissive"
 
     case "$BUILD_VARIANT" in
@@ -205,7 +168,7 @@ SET_ZIPNAME() {
     if [[ $BUILD_KERNEL_BRANCH == mainline ]]; then
         ZIP_NAME="Mint-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}${ROOT_SOLUTION}_${BUILD_DEVICE_NAME^}.zip"
     else
-        ZIP_NAME="MintBeta-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}-${MINT_SELINUX}${ROOT_SOLUTION}_${BUILD_DEVICE_NAME^}.${MINT_TYPE}.zip"
+        ZIP_NAME="MintBeta-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}-${MINT_SELINUX}_${BUILD_DEVICE_NAME^}.${MINT_TYPE}.zip"
     fi
 }
 
@@ -316,9 +279,7 @@ show_usage() {
 	script_echo "-a, --android <version>   Set Android version to build the kernel for. (Default: 11)"
 	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
-	script_echo "-n, --no-clean            Do not clean and update Magisk before build."
-	script_echo "-m, --magisk [canary]     Pre-root the kernel with Magisk. Optional flag to use canary builds."
-	script_echo "                          Not available for 'recovery' variant."
+	script_echo "-n, --no-clean            Do not clean up before build."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
 	script_echo "-h, --help                Show this message."
@@ -371,14 +332,6 @@ while [ $# -gt 0 ]; do
         shift ;;
     -n|--no-clean)
         BUILD_KERNEL_DIRTY=true
-        shift ;;
-    -m|--magisk)
-        BUILD_KERNEL_MAGISK=true
-        BUILD_KERNEL_MAGISK_BRANCH="$2"
-
-        if [[ " canary local " == *" $BUILD_KERNEL_MAGISK_BRANCH "* ]]; then
-            shift
-        fi
         shift ;;
     -p|--permissive)
         BUILD_KERNEL_PERMISSIVE=true
@@ -433,7 +386,6 @@ script_echo "I: Selected device:    $BUILD_DEVICE_NAME"
 script_echo "   Selected variant:   $MINT_VARIANT"
 script_echo "   Kernel version:     $VERSION.$PATCHLEVEL.$SUBLEVEL"
 script_echo "   Android version:    $BUILD_ANDROID_PLATFORM"
-script_echo "   Magisk-enabled:     $BUILD_KERNEL_MAGISK"
 script_echo "   Output ZIP file:    $OUT_DIR/$ZIP_NAME"
 
 # Setup build environment
@@ -471,27 +423,6 @@ if $BUILD_KERNEL_PERMISSIVE; then
 	script_echo "         This is insecure and may make your device vulnerable."
 	script_echo "         This kernel has NO RESPONSIBILITY on whatever happens next."
 	merge_config selinux-permissive
-fi
-
-if $BUILD_KERNEL_MAGISK; then
-	if [[ $BUILD_VARIANT == recovery ]]; then
-		script_echo " "
-		script_echo "I: Recovery variant selected."
-		script_echo "   Magisk is not an available option to allow recovery to boot."
-		script_echo "   Patch the image using Magisk manually to get root."
-		merge_config non-root
-		sleep 3
-	else
-		merge_config pre-root
-
-		if ! $BUILD_KERNEL_DIRTY; then
-		    UPDATE_MAGISK
-		fi
-
-		FILL_MAGISK_CONFIG
-	fi
-else
-	merge_config non-root
 fi
 
 # Use no-product Exynos DTB when building AOSP

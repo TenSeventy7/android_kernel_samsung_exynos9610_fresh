@@ -40,19 +40,6 @@ jobs:
           echo "ANDROID=$(echo ${{ matrix.type }} | cut -d '-' -f2)" >> $GITHUB_ENV
           echo "SELINUX=$(echo ${{ matrix.type }} | cut -d '-' -f3)" >> $GITHUB_ENV
 
-      - name: Build Mint kernel (Magisk)
-        run: |
-          set -eo pipefail
-          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
-          ./build.sh --automated --device a50 --magisk --variant $VARIANT --android $ANDROID -$SELINUX
-
-      - name: Upload kernel image artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.type }} Kernel Image (Magisk)
-          path: "out/boot.img"
-          if-no-files-found: error
-
       - name: Build Mint kernel (No-Root)
         run: |
           set -eo pipefail
