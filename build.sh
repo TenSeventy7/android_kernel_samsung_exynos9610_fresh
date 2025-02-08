@@ -301,7 +301,7 @@ BUILD_PACKAGE() {
         echo "ro.mint.device.name3=${BUILD_DEVICE_NAME}dd"
         echo "ro.mint.device.name4=${BUILD_DEVICE_NAME}ser"
         echo "ro.mint.device.name5=${BUILD_DEVICE_NAME}ltn"
-        echo "ro.mint.device.name6=${BUILD_DEVICE_NAME}*"
+        [ "$BUILD_DEVICE_NAME" == "a50" ] && echo "ro.mint.device.name6=a505f"
     } >> "$TMP_DIR/mint.prop"
 
     # Create zip file
