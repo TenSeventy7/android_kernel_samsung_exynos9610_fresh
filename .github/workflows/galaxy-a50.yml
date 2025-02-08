@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 'android-*'
+      - "android-*"
 
 jobs:
   build:
@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        type: [oneui-12-e, oneui-12-p, oneui-11-e, oneui-11-p, aosp-12-e, aosp-12-p, aosp-11-e, aosp-11-p]
+        type: [oneui-12-e, oneui-11-e, aosp-12-e, aosp-11-e]
 
     steps:
       - uses: actions/checkout@v3
@@ -50,7 +50,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.type }} Kernel Image (Magisk)
-          path: 'tools/make/boot.img'
+          path: "out/boot.img"
           if-no-files-found: error
 
       - name: Build Mint kernel (No-Root)
@@ -63,13 +63,13 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.type }} Kernel Image (No-Root)
-          path: 'tools/make/boot.img'
+          path: "out/boot.img"
           if-no-files-found: error
 
       - name: Prepare release package
         run: |
           mkdir -p ./release
-          mv -f `find ./ -iname "Mint-*.zip"` ./release/
+          mv -f `find ./out -iname "Mint-*.zip"` ./release/
 
       - name: Prepare build config artifact
         run: cp .config ./release/kernel_config_a50_$VARIANT-$ANDROID-$SELINUX.txt
@@ -78,7 +78,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.type }} Release
-          path: 'release'
+          path: "release"
           if-no-files-found: error
 
       - name: Upload build config artifact
@@ -100,31 +100,31 @@ jobs:
       fail-fast: true
 
     steps:
-    - uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-    - uses: szenius/set-timezone@v1.0
-      with:
-        timezoneLinux: "Asia/Manila"
-        timezoneMacos: "Asia/Manila"
-        timezoneWindows: "Philippine Standard Time"
+      - uses: szenius/set-timezone@v1.0
+        with:
+          timezoneLinux: "Asia/Manila"
+          timezoneMacos: "Asia/Manila"
+          timezoneWindows: "Philippine Standard Time"
 
-    - name: Merge releases
-      run: |
-        set -eo pipefail
-        gh run download "$GITHUB_RUN_ID" -p "*Release" --dir ./release
-        find ./release -mindepth 2 -type f -exec mv {} ./release \;
+      - name: Merge releases
+        run: |
+          set -eo pipefail
+          gh run download "$GITHUB_RUN_ID" -p "*Release" --dir ./release
+          find ./release -mindepth 2 -type f -exec mv {} ./release \;
 
-    - name: Delete build configs and release directories
-      run: |
-        set -eo pipefail
-        rm -f ./release/kernel_config_*.txt
-        rm -rf ./release/aosp-* ./release/oneui-*
+      - name: Delete build configs and release directories
+        run: |
+          set -eo pipefail
+          rm -f ./release/kernel_config_*.txt
+          rm -rf ./release/aosp-* ./release/oneui-*
 
-    - name: Upload release
-      uses: Hs1r1us/Release-AIO@v1.0
-      with:
-        tag_name: mainline-${{ github.run_number }}_a50dx
-        prerelease: true
-        release_name: Mint Stable
-        body_path: "./tools/make/release/a50-release.md"
-        asset_files: './release'
+      - name: Upload release
+        uses: Hs1r1us/Release-AIO@v1.0
+        with:
+          tag_name: mainline-${{ github.run_number }}_a50dx
+          prerelease: true
+          release_name: Mint Stable
+          body_path: "./tools/make/release/a50-release.md"
+          asset_files: "./release"
