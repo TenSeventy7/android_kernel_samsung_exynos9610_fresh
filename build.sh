@@ -201,6 +201,38 @@ BUILD_KERNEL() {
         exit_script
     fi
 }
+BUILD_RAMDISK() {
+    local comptype compcmd
+    comptype="cpio"
+    RAMDISK="ramdisk-new.cpio"
+
+    case "$comptype" in
+    gzip)  compcmd="gzip";                          RAMDISK="$RAMDISK.gz" ;;
+    lzop)  compcmd="lzop";                          RAMDISK="$RAMDISK.lzo" ;;
+    xz)    compcmd="xz -1 -Ccrc32";                 RAMDISK="$RAMDISK.xz" ;;
+    lzma)  compcmd="xz -9 -Flzma";                  RAMDISK="$RAMDISK.lzma" ;;
+    bzip2) compcmd="bzip2";                         RAMDISK="$RAMDISK.bz2" ;;
+    lz4)   compcmd="$TOP/tools/make/bin/lz4 -9";    RAMDISK="$RAMDISK.lz4" ;;
+    lz4-l) compcmd="$TOP/tools/make/bin/lz4 -9 -l"; RAMDISK="$RAMDISK.lz4" ;;
+    cpio)  compcmd="cat";                           RAMDISK="$RAMDISK" ;;
+    esac
+
+    script_echo " "
+    script_echo "I: Building ramdisk..."
+    script_echo "Compression type: $comptype"
+
+    cd "$TOP/tools/make/ramdisk" || exit
+    find . | cpio -R 0:0 -H newc --quiet -o | $compcmd > "$TOP/tools/make/$RAMDISK"
+    cd "$TOP" || exit
+
+    if [ ! -f "$TOP/tools/make/$RAMDISK" ]; then
+        script_echo " "
+		script_echo "E: Ramdisk not built successfully!"
+		script_echo "   Errors can be found above."
+		sleep 3
+		exit_script
+    fi
+}
 BUILD_IMAGE() {
     script_echo " "
 	script_echo "I: Building kernel image..."
@@ -211,7 +243,7 @@ BUILD_IMAGE() {
 	script_echo "Security patch level: $PLATFORM_PATCH_LEVEL"
 
     "$TOP/tools/make/bin/mkbootimg" \
-        --kernel "$TOP/arch/arm64/boot/Image" \
+        --kernel "$TOP/arch/arm64/boot/Image" --ramdisk "$TOP/tools/make/$RAMDISK" \
         --cmdline "androidboot.selinux=permissive loop.max_part=7" --board "$DEVICE_KERNEL_BOARD" \
         --base "$DEVICE_KERNEL_BASE" --pagesize "$DEVICE_KERNEL_PAGESIZE" \
         --kernel_offset "$DEVICE_KERNEL_OFFSET" --ramdisk_offset "$DEVICE_RAMDISK_OFFSET" \
@@ -232,13 +264,16 @@ BUILD_PACKAGE() {
     script_echo " "
     script_echo "I: Creating kernel ZIP..."
 
-    # Copy kernel image
+    # Import kernel image
     mv "$TOP/arch/arm64/boot/Image" "$TMP_DIR"
 
-    # Copy DTB image
+    # Import DTB image
     mv "$TOP/arch/arm64/boot/dtb_exynos.img" "$TMP_DIR/dtb.img"
 
-    # Copy AnyKernel3
+    # Import ramdisk
+    mv "$TOP/tools/make/$RAMDISK" "$TMP_DIR/$RAMDISK"
+
+    # Import AnyKernel3
     cp -r "$TOP/tools/make/package/"* "$TMP_DIR"
 
     # Generate manifest
@@ -438,6 +473,7 @@ if [[ $BUILD_VARIANT == recovery ]]; then
 	script_echo "I: Exporting kernel image..."
 	mv -f "$TOP/arch/arm64/boot/Image" "$OUT_DIR"
 else
+    BUILD_RAMDISK
     BUILD_IMAGE
 	BUILD_PACKAGE
 fi
