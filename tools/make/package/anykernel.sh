@@ -4,20 +4,12 @@
 ### AnyKernel setup
 # global properties
 properties() { '
-kernel.string=ExampleKernel by osm0sis @ xda-developers
 do.devicecheck=1
 do.modules=0
-do.systemless=1
+do.systemless=0
 do.cleanup=1
 do.cleanuponabort=0
-device.name1=maguro
-device.name2=toro
-device.name3=toroplus
-device.name4=tuna
-device.name5=
-supported.versions=
-supported.patchlevels=
-supported.vendorpatchlevels=
+supported.patchlevels=2021-04 -
 '; } # end properties
 
 
@@ -29,93 +21,120 @@ set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
 } # end attributes
 
 # boot shell variables
-BLOCK=/dev/block/platform/omap/omap_hsmmc.0/by-name/boot;
+BLOCK=/dev/block/platform/13520000.ufs/by-name/boot;
 IS_SLOT_DEVICE=0;
 RAMDISK_COMPRESSION=auto;
-PATCH_VBMETA_FLAG=auto;
+NO_BLOCK_DISPLAY=1;
+PATCH_VBMETA_FLAG=0;
 
 # import functions/variables and setup patching - see for reference (DO NOT REMOVE)
 . tools/ak3-core.sh;
 
-# boot install
-dump_boot; # use split_boot to skip ramdisk unpack, e.g. for devices with init_boot ramdisk
+# TenSeventySeven 2021 - Enable Pageboost and RAM Plus
+AK_FOLDER=/tmp/anykernel
+mount /system/
+mount /system_root/
+mount /vendor/
+mount -o rw,remount -t auto /system > /dev/null
+mount -o rw,remount -t auto /vendor > /dev/null
 
-# init.rc
-backup_file init.rc;
-replace_string init.rc "cpuctl cpu,timer_slack" "mount cgroup none /dev/cpuctl cpu" "mount cgroup none /dev/cpuctl cpu,timer_slack";
+fresh4=0
+fresh=$(file_getprop "/system_root/system/system_ext/fresh.prop" "ro.fresh.maintainer")
+oneui=$(file_getprop "/system_root/system/build.prop" "ro.build.PDA")
 
-# init.tuna.rc
-backup_file init.tuna.rc;
-insert_line init.tuna.rc "nodiratime barrier=0" after "mount_all /fstab.tuna" "\tmount ext4 /dev/block/platform/omap/omap_hsmmc.0/by-name/userdata /data remount nosuid nodev noatime nodiratime barrier=0";
-append_file init.tuna.rc "bootscript" init.tuna;
+# Accomodate Exynos9611 devices' init.hardware.rc
+if [ -f "/vendor/etc/init/init.exynos9611.rc" ]; then
+	VENDOR_INIT_RC=/vendor/etc/init/init.exynos9611.rc
+else
+	VENDOR_INIT_RC=/vendor/etc/init/init.exynos9610.rc
+fi
 
-# fstab.tuna
-backup_file fstab.tuna;
-patch_fstab fstab.tuna /system ext4 options "noatime,barrier=1" "noatime,nodiratime,barrier=0";
-patch_fstab fstab.tuna /cache ext4 options "barrier=1" "barrier=0,nomblk_io_submit";
-patch_fstab fstab.tuna /data ext4 options "data=ordered" "nomblk_io_submit,data=writeback";
-append_file fstab.tuna "usbdisk" fstab;
+# Try for Fresh 4 series
+if [ -z $fresh ]; then
+	fresh=$(file_getprop "/system_root/system/system_ext/etc/fresh.prop" "ro.fresh.maintainer")
+	if [ ! -z $fresh ]; then
+		fresh4=1
+	fi
+fi
 
-write_boot; # use flash_boot to skip ramdisk repack, e.g. for devices with init_boot ramdisk
+if [ ! -z $oneui ]; then
+	if [ -z $fresh ]; then
+  		sdk_ver=$(file_getprop /vendor/build.prop ro.vendor.build.version.sdk);
+  		if [ "${sdk_ver}" == "30" ]; then
+			ui_print "  - One UI detected!"
+			ui_print "    - Enabling Pageboost and RAM Plus"
+			patch_prop /vendor/build.prop 'ro.nandswap.level' '2'
+			patch_prop /vendor/build.prop 'ro.nandswap.lru_ratio' '50'
+			patch_prop /vendor/build.prop 'ro.sys.kernelmemory.nandswap.ux_support' 'true'
+			patch_prop /vendor/build.prop 'ro.sys.kernelmemory.nandswap.daily_quota' '786432'
+			patch_prop /vendor/build.prop 'ro.sys.kernelmemory.nandswap.daily_quota_limit' '2359296'
+			patch_prop /vendor/build.prop 'ro.config.pageboost.vramdisk.minimize' "true"
+			patch_prop /vendor/build.prop 'ro.config.pageboost.active_launch.enabled' "true"
+			patch_prop /vendor/build.prop 'ro.config.pageboost.io_prefetch.enabled' "true"
+			patch_prop /vendor/build.prop 'ro.config.pageboost.io_prefetch.level' "3"
+
+			cp -rf $AK_FOLDER/files_oneui/system/etc/init/init.mint.rc /system/etc/init/init.mint.rc
+			cp -rf $AK_FOLDER/files_oneui/system/etc/init/init.mint.rc /system_root/system/etc/init/init.mint.rc
+			cp -rf $AK_FOLDER/files_oneui/vendor/etc/fstab.sqzr /vendor/etc/fstab.sqzr
+
+			chmod 644 /system/etc/init/init.mint.rc
+			chmod 644 /system_root/system/etc/init/init.mint.rc
+			chmod 644 /vendor/etc/fstab.sqzr
+
+			# Disable SSWAP for RAM Plus and Pageboost
+			remove_section ${VENDOR_INIT_RC} 'service swapon /system/bin/sswap -s -z -f 2048' 'oneshot'
+			replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.exynos9610' 'swapon_all /vendor/etc/fstab.sqzr' global
+			replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.model' 'swapon_all /vendor/etc/fstab.sqzr' global
+			replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.zram' 'swapon_all /vendor/etc/fstab.sqzr' global
+			append_file ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.sqzr' init.ramplus.rc
+			append_file ${VENDOR_INIT_RC} 'start pageboostd' init.pageboost.rc
+		else
+			ui_print "  - One UI 4 detected! RAM Plus is already enabled!"
+  		fi
+	else
+  		sdk_ver=$(file_getprop /system_root/system/build.prop ro.build.version.sdk);
+		ui_print "  - FreshROMs detected! RAM Plus is already enabled!"
+
+		fresh_codename=$(file_getprop "/system_root/system/system_ext/etc/fresh.prop" "ro.fresh.build.codename")
+
+		if [ "${fresh4}" == "1" ]; then
+			if [ "${fresh_codename}" == "axl" ]; then
+				cp -rf $AK_FOLDER/files_fresh/system/etc/init/init.fresh.perf.rc /system/etc/init/init.fresh.perf.rc
+				chmod 644 /system_root/system/etc/init/init.fresh.perf.rc
+			fi
+		fi
+	fi
+else
+	ui_print "  - AOSP ROM detected!"
+	ui_print "    - Enabling native ZRAM writeback"
+
+	mkdir -p /vendor/overlay
+	cp -rf $AK_FOLDER/files_aosp/vendor/overlay/MintZramWb.apk /vendor/overlay/MintZramWb.apk
+	cp -rf $AK_FOLDER/files_aosp/vendor/etc/fstab.zram /vendor/etc/fstab.zram
+
+	chmod 644 /vendor/overlay/MintZramWb.apk
+	chmod 644 /vendor/etc/fstab.zram
+
+	patch_prop /vendor/build.prop 'ro.zram.mark_idle_delay_mins' '60'
+	patch_prop /vendor/build.prop 'ro.zram.first_wb_delay_mins' '1440'
+	patch_prop /vendor/build.prop 'ro.zram.periodic_wb_delay_hours' '24'
+	replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.exynos9610' 'swapon_all /vendor/etc/fstab.zram' global
+	replace_string ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.dummy' 'swapon_all /vendor/etc/fstab.sqzr' 'swapon_all /vendor/etc/fstab.zram' global
+	append_file ${VENDOR_INIT_RC} 'swapon_all /vendor/etc/fstab.zram' init.zram.rc
+fi
+
+umount /system
+umount /system_root
+umount /vendor
+
+## AnyKernel boot install
+split_boot;
+
+process_ramdisk;
+
+flash_boot;
+
+# Flash dtb
+ui_print "  - Installing Exynos device tree blob (DTB)...";
+flash_generic dtb;
 ## end boot install
-
-
-## init_boot files attributes
-#init_boot_attributes() {
-#set_perm_recursive 0 0 755 644 $RAMDISK/*;
-#set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
-#} # end attributes
-
-# init_boot shell variables
-#BLOCK=init_boot;
-#IS_SLOT_DEVICE=1;
-#RAMDISK_COMPRESSION=auto;
-#PATCH_VBMETA_FLAG=auto;
-
-# reset for init_boot patching
-#reset_ak;
-
-# init_boot install
-#dump_boot; # unpack ramdisk since it is the new first stage init ramdisk where overlay.d must go
-
-#write_boot;
-## end init_boot install
-
-
-## vendor_kernel_boot shell variables
-#BLOCK=vendor_kernel_boot;
-#IS_SLOT_DEVICE=1;
-#RAMDISK_COMPRESSION=auto;
-#PATCH_VBMETA_FLAG=auto;
-
-# reset for vendor_kernel_boot patching
-#reset_ak;
-
-# vendor_kernel_boot install
-#split_boot; # skip unpack/repack ramdisk, e.g. for dtb on devices with hdr v4 and vendor_kernel_boot
-
-#flash_boot;
-## end vendor_kernel_boot install
-
-
-## vendor_boot files attributes
-#vendor_boot_attributes() {
-#set_perm_recursive 0 0 755 644 $RAMDISK/*;
-#set_perm_recursive 0 0 750 750 $RAMDISK/init* $RAMDISK/sbin;
-#} # end attributes
-
-# vendor_boot shell variables
-#BLOCK=vendor_boot;
-#IS_SLOT_DEVICE=1;
-#RAMDISK_COMPRESSION=auto;
-#PATCH_VBMETA_FLAG=auto;
-
-# reset for vendor_boot patching
-#reset_ak;
-
-# vendor_boot install
-#dump_boot; # use split_boot to skip ramdisk unpack, e.g. for dtb on devices with hdr v4 but no vendor_kernel_boot
-
-#write_boot; # use flash_boot to skip ramdisk repack, e.g. for dtb on devices with hdr v4 but no vendor_kernel_boot
-## end vendor_boot install
-
