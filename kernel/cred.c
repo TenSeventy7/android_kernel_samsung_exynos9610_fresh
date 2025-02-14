@@ -120,7 +120,7 @@ void rkp_get_init_cred(void)
 {
         if (rkp_ro_page((unsigned long)&init_cred))
 				rocred_uc_inc((&init_cred));
-		else 
+		else
                 atomic_inc(&init_cred.usage);
 }
 EXPORT_SYMBOL(rkp_get_init_cred);
@@ -307,7 +307,7 @@ const struct cred *get_task_cred(struct task_struct *task)
 	do {
 		cred = __task_cred((task));
 		BUG_ON(!cred);
-	} while (!atomic_inc_not_zero(&((struct cred *)cred)->usage));
+	} while (!get_cred_rcu(cred));
 #endif /*CONFIG_RKP_KDP*/
 
 	rcu_read_unlock();
@@ -371,15 +371,15 @@ static struct cred *prepare_ro_creds(struct cred *old, int kdp_cmd, u64 p)
 	rkp_cred_fill_params(old,new_ro,use_cnt_ptr,tsec,kdp_cmd,p);
 	uh_call(UH_APP_RKP, RKP_KDP_X46, (u64)&cred_param, 0, 0, 0);
 	if (kdp_cmd == RKP_CMD_COPY_CREDS) {
-		if ((new_ro->bp_task != (void *)p) 
-			|| new_ro->security != tsec 
+		if ((new_ro->bp_task != (void *)p)
+			|| new_ro->security != tsec
 			|| new_ro->use_cnt != use_cnt_ptr) {
 			panic("[%d]: RKP Call failed task=#%p:%p#, sec=#%p:%p#, usecnt=#%p:%p#", kdp_cmd, new_ro->bp_task,(void *)p,new_ro->security,tsec,new_ro->use_cnt,use_cnt_ptr);
 		}
 	}
 	else {
 		if ((new_ro->bp_task != current)||
-			(current->mm 
+			(current->mm
 			&& new_ro->bp_pgd != (void *)pgd) ||
 			(new_ro->security != tsec) ||
 			(new_ro->use_cnt != use_cnt_ptr)) {
@@ -497,7 +497,7 @@ int rkp_from_tsec_jar(unsigned long addr)
 	static void *objp;
 	static struct kmem_cache *s;
 	static struct page *page;
-	
+
 	objp = (void *)addr;
 
 	if(!objp)
@@ -512,21 +512,21 @@ int rkp_from_tsec_jar(unsigned long addr)
 	}
 	return 0;
 }
-int chk_invalid_kern_ptr(u64 tsec) 
+int chk_invalid_kern_ptr(u64 tsec)
 {
 	return (((u64)tsec >> 36) != (u64)0xFFFFFFC);
 }
 void rkp_free_security(unsigned long tsec)
 {
-	if(!tsec || 
+	if(!tsec ||
 		chk_invalid_kern_ptr(tsec))
 		return;
 
-	if(rkp_ro_page(tsec) && 
+	if(rkp_ro_page(tsec) &&
 		rkp_from_tsec_jar(tsec)){
 		kmem_cache_free(tsec_jar,(void *)tsec);
 	}
-	else { 
+	else {
 		kfree((void *)tsec);
 	}
 }
@@ -735,7 +735,7 @@ int commit_creds(struct cred *new)
 
 		rcu_assign_pointer(task->real_cred, new_ro);
 		rcu_assign_pointer(task->cred, new_ro);
-	} 
+	}
 	else {
 		rcu_assign_pointer(task->real_cred, new);
 		rcu_assign_pointer(task->cred, new);
