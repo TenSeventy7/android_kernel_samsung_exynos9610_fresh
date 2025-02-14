@@ -276,6 +276,13 @@ BUILD_PACKAGE() {
     # Import AnyKernel3
     cp -r "$TOP/tools/make/package/"* "$TMP_DIR"
 
+    # Nuke product from fstab when building AOSP
+    if [[ $BUILD_VARIANT == aosp ]]; then
+        script_echo "I: Remove product from fstab for use with AOSP ROMs."
+        sed -i '/product/d' "$TOP/tools/make/ramdisk/fstab.exynos9610"
+        sed -i '/product/d' "$TOP/tools/make/ramdisk/fstab.exynos9610"
+    fi
+
     # Generate manifest
     {
         echo "ro.mint.build.date=$BUILD_DATE"
@@ -458,12 +465,6 @@ if $BUILD_KERNEL_PERMISSIVE; then
 	script_echo "         This is insecure and may make your device vulnerable."
 	script_echo "         This kernel has NO RESPONSIBILITY on whatever happens next."
 	merge_config selinux-permissive
-fi
-
-# Use no-product Exynos DTB when building AOSP
-if [[ $BUILD_VARIANT == "aosp" ]]; then
-	script_echo "I: Copying no-product DTB file for use with AOSP ROMs."
-	cp -f "$TOP/arch/arm64/boot/dts/exynos/aosp/exynos9610.dts" "$TOP/arch/arm64/boot/dts/exynos/"
 fi
 
 # Build Mint

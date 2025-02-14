@@ -1,0 +1,20 @@
+# Android fstab file.
+#<src>                  <mnt_point>         <type>    <mnt_flags and options>                               <fs_mgr_flags>
+# The filesystem that contains the filesystem checker binary (typically /system) cannot
+# specify MF_CHECK, and must come before any filesystems that do specify MF_CHECK
+
+/dev/block/platform/13520000.ufs/by-name/system     /system     ext4    ro  wait,first_stage_mount
+/dev/block/platform/13520000.ufs/by-name/vendor     /vendor     ext4    ro  wait,first_stage_mount
+/dev/block/platform/13520000.ufs/by-name/product    /product    ext4    ro  wait,first_stage_mount
+
+/dev/block/platform/13520000.ufs/by-name/cache      /cache              ext4	noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic    wait,check
+/dev/block/platform/13520000.ufs/by-name/userdata   /data               ext4	noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic    latemount,wait,check,reservedsize=128M
+/dev/block/platform/13520000.ufs/by-name/efs        /mnt/vendor/efs     ext4	noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic    wait,check
+/dev/block/platform/13520000.ufs/by-name/cpefs      /mnt/vendor/cpefs   ext4	noatime,nosuid,nodev,noauto_da_alloc,discard,journal_checksum,data=ordered,errors=panic    wait,check,nofail
+/dev/block/platform/13520000.ufs/by-name/misc       /misc               emmc	defaults                                                                                   defaults,first_stage_mount
+
+# VOLD :: fstab.exynos9610_P
+/devices/platform/13550000.dwmmc2/mmc_host/*                        auto        vfat    defaults    voldmanaged=sdcard:auto
+/devices/platform/13200000.usb/13200000.dwc3/xhci-hcd.2.auto/usb*   auto        auto    defaults    voldmanaged=usb:auto
+
+/dev/block/zram0	                                                none		swap	defaults	zramsize=4026531840,max_comp_streams=8

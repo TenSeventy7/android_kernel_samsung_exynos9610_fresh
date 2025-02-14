@@ -152,32 +152,6 @@
 	firmware {
 		android {
 			compatible = "android,firmware";
-			fstab {
-				compatible = "android,fstab";
-				system {
-					compatible = "android,system";
-					dev = "/dev/block/platform/13520000.ufs/by-name/system";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-					status = "okay";
-				};
-				vendor {
-					compatible = "android,vendor";
-					dev = "/dev/block/platform/13520000.ufs/by-name/vendor";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-					status = "okay";
-				};
-				product {
-					compatible = "android,product";
-					dev = "/dev/block/platform/13520000.ufs/by-name/product";
-					type = "ext4";
-					mnt_flags = "ro";
-					fsmgr_flags = "wait";
-				};
-			};
 		};
 	};
 
