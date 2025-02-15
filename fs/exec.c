@@ -1290,8 +1290,8 @@ extern struct super_block *rootfs_sb;	/* pointer to superblock */
 extern int is_recovery;
 extern int __check_verifiedboot;
 
-static int kdp_check_sb_mismatch(struct super_block *sb) 
-{	
+static int kdp_check_sb_mismatch(struct super_block *sb)
+{
 	if(is_recovery || __check_verifiedboot) {
 		return 0;
 	}
@@ -1302,17 +1302,17 @@ static int kdp_check_sb_mismatch(struct super_block *sb)
 	return 0;
 }
 
-static int invalid_drive(struct linux_binprm * bprm) 
+static int invalid_drive(struct linux_binprm * bprm)
 {
 	struct super_block *sb =  NULL;
 	struct vfsmount *vfsmnt = NULL;
-	
+
 	vfsmnt = bprm->file->f_path.mnt;
-	if(!vfsmnt || 
+	if(!vfsmnt ||
 		!rkp_ro_page((unsigned long)vfsmnt)) {
 		printk("\nInvalid Drive #%s# #%p#\n",bprm->filename, vfsmnt);
 		return 1;
-	} 
+	}
 	sb = vfsmnt->mnt_sb;
 
 	if(kdp_check_sb_mismatch(sb)) {
@@ -1370,7 +1370,7 @@ int flush_old_exec(struct linux_binprm * bprm)
 	acct_arg_size(bprm, 0);
 #if 0 /* def CONFIG_RKP_NS_PROT */
 	if(rkp_cred_enable &&
-		is_rkp_priv_task() && 
+		is_rkp_priv_task() &&
 		invalid_drive(bprm)) {
 		panic("\n KDP_NS_PROT: Illegal Execution of file #%s#\n", bprm->filename);
 	}
@@ -1905,7 +1905,7 @@ static int rkp_restrict_fork(struct filename *path)
 	if(!strcmp(path->name,"/system/bin/patchoat")){
 		return 0 ;
 	}
-        /* If the Process is from Linux on Dex, 
+        /* If the Process is from Linux on Dex,
         then no need to reduce privilege */
 #ifdef CONFIG_LOD_SEC
 	if(rkp_is_lod(current)){
@@ -1953,6 +1953,12 @@ static int exec_binprm(struct linux_binprm *bprm)
 	return ret;
 }
 
+#ifdef CONFIG_KSU
+extern bool ksu_execveat_hook __read_mostly;
+extern int ksu_handle_execveat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags);
+extern int ksu_handle_execveat_sucompat(int *fd, struct filename **filename_ptr, void *argv, void *envp, int *flags);
+#endif
+
 /*
  * sys_execve() executes a new program.
  */
@@ -1966,6 +1972,13 @@ static int do_execveat_common(int fd, struct filename *filename,
 	struct file *file;
 	struct files_struct *displaced;
 	int retval;
+
+	#ifdef CONFIG_KSU
+	if (unlikely(ksu_execveat_hook))
+		ksu_handle_execveat(&fd, &filename, &argv, &envp, &flags);
+	else
+		ksu_handle_execveat_sucompat(&fd, &filename, &argv, &envp, &flags);
+	#endif
 
 	if (IS_ERR(filename))
 		return PTR_ERR(filename);
