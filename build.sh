@@ -289,6 +289,7 @@ BUILD_PACKAGE() {
     {
         echo "ro.mint.build.date=$BUILD_DATE"
         echo "ro.mint.build.branch=$BUILD_KERNEL_BRANCH"
+        echo "ro.mint.build.ksu=$BUILD_KERNEL_KSU"
         echo "ro.mint.droid.device=${BUILD_DEVICE_NAME^}"
         echo "ro.mint.droid.variant=$MINT_VARIANT"
 

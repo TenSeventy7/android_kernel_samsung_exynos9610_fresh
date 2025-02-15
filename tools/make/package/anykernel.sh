@@ -41,6 +41,7 @@ mount -o rw,remount -t auto /vendor > /dev/null
 fresh4=0
 fresh=$(file_getprop "/system_root/system/system_ext/fresh.prop" "ro.fresh.maintainer")
 oneui=$(file_getprop "/system_root/system/build.prop" "ro.build.PDA")
+kernelsu=$(file_getprop "$AK_FOLDER/mint.prop" "ro.mint.build.ksu")
 
 # Accomodate Exynos9611 devices' init.hardware.rc
 if [ -f "/vendor/etc/init/init.exynos9611.rc" ]; then
@@ -130,7 +131,9 @@ umount /vendor
 ## AnyKernel boot install
 split_boot;
 
-process_ramdisk;
+if ! $kernelsu; then
+    process_ramdisk;
+fi
 
 flash_boot;
 
