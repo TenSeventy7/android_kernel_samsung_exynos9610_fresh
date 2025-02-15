@@ -61,6 +61,7 @@ BUILD_KERNEL_BRANCH="${GITHUB_REF##*/}"
 [[ $BUILD_KERNEL_BRANCH == *"android-"* ]] && BUILD_KERNEL_BRANCH="mainline"
 
 # Defaults
+BUILD_KERNEL_KSU=false
 BUILD_KERNEL_CI=false
 BUILD_KERNEL_DIRTY=false
 BUILD_KERNEL_PERMISSIVE=false
@@ -150,6 +151,7 @@ SET_ZIPNAME() {
         MINT_TYPE="CI"
     fi
 
+    $BUILD_KERNEL_KSU && ROOT_SOLUTION="-KSU"
     $BUILD_KERNEL_PERMISSIVE && MINT_SELINUX="Permissive"
 
     case "$BUILD_VARIANT" in
@@ -168,7 +170,7 @@ SET_ZIPNAME() {
     if [[ $BUILD_KERNEL_BRANCH == mainline ]]; then
         ZIP_NAME="Mint-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}${ROOT_SOLUTION}_${BUILD_DEVICE_NAME^}.zip"
     else
-        ZIP_NAME="MintBeta-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}-${MINT_SELINUX}_${BUILD_DEVICE_NAME^}.${MINT_TYPE}.zip"
+        ZIP_NAME="MintBeta-${MINT_VERSION}.A${BUILD_ANDROID_PLATFORM}.${MINT_VARIANT}${ONEUI_VERSION}-${MINT_SELINUX}${ROOT_SOLUTION}_${BUILD_DEVICE_NAME^}.${MINT_TYPE}.zip"
     fi
 }
 
@@ -321,6 +323,8 @@ show_usage() {
 	script_echo "-a, --android <version>   Set Android version to build the kernel for. (Default: 11)"
 	script_echo "-v, --variant <variant>   Set build variant to build the kernel for. Required."
 	script_echo " "
+	script_echo "-k, --kernelsu            Pre-root the kernel with KernelSU."
+	script_echo "                          Not available for 'recovery' variant."
 	script_echo "-n, --no-clean            Do not clean up before build."
 	script_echo "-p, --permissive          Build kernel with SELinux fully permissive. NOT RECOMMENDED!"
 	script_echo " "
@@ -371,6 +375,9 @@ while [ $# -gt 0 ]; do
         shift; shift ;;
     -c|--automated)
         BUILD_KERNEL_CI=true
+        shift ;;
+    -k|--kernelsu)
+        BUILD_KERNEL_KSU=true
         shift ;;
     -n|--no-clean)
         BUILD_KERNEL_DIRTY=true
@@ -428,6 +435,7 @@ script_echo "I: Selected device:    $BUILD_DEVICE_NAME"
 script_echo "   Selected variant:   $MINT_VARIANT"
 script_echo "   Kernel version:     $VERSION.$PATCHLEVEL.$SUBLEVEL"
 script_echo "   Android version:    $BUILD_ANDROID_PLATFORM"
+script_echo "   KernelSU-enabled:   $BUILD_KERNEL_KSU"
 script_echo "   Output ZIP file:    $OUT_DIR/$ZIP_NAME"
 
 # Setup build environment
@@ -436,6 +444,8 @@ mkdir -p "$TMP_DIR"
 
 VERIFY_TOOLCHAIN
 VERIFY_DEFCONFIG
+
+git submodule update --init "$TOP/KernelSU"
 
 if $BUILD_KERNEL_CI; then
 	export KBUILD_BUILD_USER="Clembot"
@@ -459,6 +469,19 @@ fi
 merge_config "partial-deknox-$BUILD_ANDROID_PLATFORM"
 merge_config "mali-$BUILD_ANDROID_PLATFORM"
 merge_config "variant_$BUILD_VARIANT"
+
+if $BUILD_KERNEL_KSU; then
+    if [[ $BUILD_VARIANT == recovery ]]; then
+        script_echo "I: Recovery variant selected."
+        script_echo "   KernelSU is not an available option to allow recovery to boot."
+        merge_config root-none
+        sleep 3
+    else
+        merge_config root-kernelsu
+    fi
+else
+    merge_config root-none
+fi
 
 if $BUILD_KERNEL_PERMISSIVE; then
 	script_echo "WARNING! You're building this kernel in permissive mode!"

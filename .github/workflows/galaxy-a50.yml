@@ -53,6 +53,19 @@ jobs:
           path: "out/boot.img"
           if-no-files-found: error
 
+      - name: Build Mint kernel (KernelSU)
+        run: |
+          set -eo pipefail
+          echo "  I: Building Mint kernel ${GITHUB_REF##*/}-${GITHUB_RUN_NUMBER}"
+          ./build.sh --automated --device a50 --variant $VARIANT --android $ANDROID -$SELINUX --kernelsu
+
+      - name: Upload kernel image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.type }} Kernel Image (KernelSU)
+          path: "out/boot.img"
+          if-no-files-found: error
+
       - name: Prepare release package
         run: |
           mkdir -p ./release
