@@ -105,7 +105,7 @@ if [ ! -z $oneui ]; then
 			fi
 		fi
 	fi
-else
+elif ! blkid '/dev/block/platform/13520000.ufs/by-name/vendor' | grep -q 'erofs'; then
 	ui_print "  - AOSP ROM detected!"
 	ui_print "    - Enabling native ZRAM writeback"
 
